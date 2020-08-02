@@ -96,6 +96,7 @@ segments = ["https://www.strava.com/segments/18009162",
 "https://www.strava.com/segments/24969568"]
 
 rankings = {}
+count = {}
 
 class MyHTMLParser(HTMLParser):
     def __init__(self, url):
@@ -125,8 +126,10 @@ class MyHTMLParser(HTMLParser):
 
             if (data in rankings):
                 rankings[data] = rankings[data] + thispoints
+                count[data] = count[data] + 1
             else:
                 rankings[data] = thispoints
+                count[data] = 1
             self.count = self.count + 1
             self.foundPerson = False
 
@@ -146,7 +149,7 @@ def main():
     finalrankings = [(k, v) for k, v in rankings.items()]
     finalrankings.sort(reverse=True, key=(lambda a : a[1]))
     for person, points in finalrankings:
-        print(person + "," + str(points))
+        print(person + "," + str(points) + "," + str(count[person]))
 
 if __name__ == "__main__":
     main()
