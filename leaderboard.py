@@ -1,109 +1,18 @@
 from html.parser import HTMLParser
 import sys
 import subprocess
+import json
 
-points = [35, 30, 27, 24, 22, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
-segments = ["https://www.strava.com/segments/18009162",
-"https://www.strava.com/segments/12602205",
-"https://www.strava.com/segments/847877",
-"https://www.strava.com/segments/13164122",
-"https://www.strava.com/segments/24963500",
-"https://www.strava.com/segments/9430536",
-"https://www.strava.com/segments/18869214",
-"https://www.strava.com/segments/19420518",
-"https://www.strava.com/segments/19845029",
-"https://www.strava.com/segments/13916096",
-"https://www.strava.com/segments/3977014",
-"https://www.strava.com/segments/24895515",
-"https://www.strava.com/segments/917649",
-"https://www.strava.com/segments/21553796",
-"https://www.strava.com/segments/13893599",
-"https://www.strava.com/segments/16571671",
-"https://www.strava.com/segments/3153417",
-"https://www.strava.com/segments/24736806",
-"https://www.strava.com/segments/12421407",
-"https://www.strava.com/segments/24969638",
-"https://www.strava.com/segments/8340561",
-"https://www.strava.com/segments/21763226",
-"https://www.strava.com/segments/20469732",
-"https://www.strava.com/segments/15791170",
-"https://www.strava.com/segments/19133193",
-"https://www.strava.com/segments/24981311",
-"https://www.strava.com/segments/17044098",
-"https://www.strava.com/segments/9084546",
-"https://www.strava.com/segments/3586828",
-"https://www.strava.com/segments/1358498",
-"https://www.strava.com/segments/2749245",
-"https://www.strava.com/segments/24970098",
-"https://www.strava.com/segments/24969607",
-"https://www.strava.com/segments/9375224",
-"https://www.strava.com/segments/10492069",
-"https://www.strava.com/segments/12057667",
-"https://www.strava.com/segments/3715474",
-"https://www.strava.com/segments/4341250",
-"https://www.strava.com/segments/10821433",
-"https://www.strava.com/segments/12727610",
-"https://www.strava.com/segments/7746545",
-"https://www.strava.com/segments/12452468",
-"https://www.strava.com/segments/9424327",
-"https://www.strava.com/segments/24983019",
-"https://www.strava.com/segments/24895619",
-"https://www.strava.com/segments/2869589",
-"https://www.strava.com/segments/2567785",
-"https://www.strava.com/segments/23116240",
-"https://www.strava.com/segments/1365197",
-"https://www.strava.com/segments/24627589",
-"https://www.strava.com/segments/13861791",
-"https://www.strava.com/segments/24983881",
-"https://www.strava.com/segments/24984157",
-"https://www.strava.com/segments/24992170",
-"https://www.strava.com/segments/24963518",
-"https://www.strava.com/segments/1367485",
-"https://www.strava.com/segments/15952592",
-"https://www.strava.com/segments/16959203",
-"https://www.strava.com/segments/10735790",
-"https://www.strava.com/segments/24992781",
-"https://www.strava.com/segments/2743341",
-"https://www.strava.com/segments/14645040",
-"https://www.strava.com/segments/20501792",
-"https://www.strava.com/segments/16433409",
-"https://www.strava.com/segments/14058810",
-"https://www.strava.com/segments/4031142",
-"https://www.strava.com/segments/6823502",
-"https://www.strava.com/segments/24414054",
-"https://www.strava.com/segments/1611860",
-"https://www.strava.com/segments/18152742",
-"https://www.strava.com/segments/5524719",
-"https://www.strava.com/segments/887503",
-"https://www.strava.com/segments/12793300",
-"https://www.strava.com/segments/21393535",
-"https://www.strava.com/segments/4961685",
-"https://www.strava.com/segments/24977520",
-"https://www.strava.com/segments/10326770",
-"https://www.strava.com/segments/7770278",
-"https://www.strava.com/segments/13296676",
-"https://www.strava.com/segments/1237021",
-"https://www.strava.com/segments/13915990",
-"https://www.strava.com/segments/5177031",
-"https://www.strava.com/segments/1865121",
-"https://www.strava.com/segments/25093766",
-"https://www.strava.com/segments/5397534",
-"https://www.strava.com/segments/10747924",
-"https://www.strava.com/segments/5955218",
-"https://www.strava.com/segments/7039851",
-"https://www.strava.com/segments/4009884",
-"https://www.strava.com/segments/12244391",
-"https://www.strava.com/segments/24969568"]
-
-rankings = {}
-count = {}
-
-class MyHTMLParser(HTMLParser):
-    def __init__(self, url):
+class SegmentHTMLParser(HTMLParser):
+    def __init__(self, rankings, segment_count, points, participation_points, unmatched_participation_points):
         self.foundTrackClick = False
         self.foundPerson = False
         self.count = 0
-        self.url = url
+        self.rankings = rankings
+        self.segment_count = segment_count
+        self.points = points
+        self.participation_points = participation_points
+        self.unmatched_participation_points = unmatched_participation_points
         super().__init__()
 
     def handle_starttag(self, tag, attrs):
@@ -119,37 +28,83 @@ class MyHTMLParser(HTMLParser):
     def handle_data(self, data):
         if (self.count >= 100): raise Exception('Too many entries!')
         if (self.foundPerson):
-            if (self.count >= len(points)):
-              thispoints = 10
+            if (self.count >= len(self.points)):
+              thispoints = self.unmatched_participation_points
             else:
-              thispoints = 10 + points[self.count]
+              thispoints = self.participation_points + self.points[self.count]
 
-            if (data in rankings):
-                rankings[data] = rankings[data] + thispoints
-                count[data] = count[data] + 1
+            if (data in self.rankings):
+                self.rankings[data] = self.rankings[data] + thispoints
+                self.segment_count[data] = self.segment_count[data] + 1
             else:
-                rankings[data] = thispoints
-                count[data] = 1
+                self.rankings[data] = thispoints
+                self.segment_count[data] = 1
             self.count = self.count + 1
             self.foundPerson = False
 
+class SegmentCrawler():
+    def __init__(self, cookie_file, segment_url, rankings, segment_count, points, participation_points, unmatched_participation_points):
+         self.cookie_file = cookie_file
+         self.segment_url = segment_url
+         self.rankings = rankings
+         self.segment_count = segment_count
+         self.points = points
+         self.participation_points = participation_points
+         self.unmatched_participation_points = unmatched_participation_points
+
+    def run(self):
+        page_number = 1
+        while True:
+            segment_url = self.segment_url + "&page={}&per_page=100".format(page_number)
+            print("Processing URL: " + segment_url)
+
+            completed = subprocess.run(["curl", "--cookie", self.cookie_file, segment_url], capture_output=True)
+            parser = SegmentHTMLParser(self.rankings, self.segment_count, self.points, self.participation_points, self.unmatched_participation_points)
+            parser.feed(completed.stdout.decode("utf-8"))
+
+            # Processed everything
+            if (parser.count < 100): break
+
+            page_number = page_number + 1
+
+
+class Config():
+    class RunConfig():
+        def __init__(self, output_file, options):
+            self.output_file = output_file
+            self.options = options
+
+    def __init__(self, config_filename):
+        f = open(config_filename, "r")
+        contents = f.read()
+        json_config = json.loads(contents)
+        self.segments = json_config["segments"]
+        self.points = json_config["points"]
+        self.participation_points = json_config["participation_points"]
+        self.unmatched_participation_points = json_config["unmatched_participation_points"]
+        runs = json_config["runs"]
+        self.run_configs = []
+        for run in runs:
+            self.run_configs.append(self.RunConfig(run["output_file"], run["options"]))
 
 
 def main():
-    gender=""
-    if (len(sys.argv) > 1 and sys.argv[1] == '-w'):
-        gender="&gender=F"
+    config = Config(sys.argv[1])
+    cookie_file = sys.argv[2]
 
-    for segment in segments:
-        segment_url = segment + "?filter=overall&page=1&per_page=100&partial=true&date_range=this_month" + gender
-        completed = subprocess.run(["curl", "--cookie", "/Users/vjc/Downloads/cookies2.txt", segment_url], capture_output=True)
-        parser = MyHTMLParser(segment_url)
-        parser.feed(completed.stdout.decode("utf-8"))
+    for run_config in config.run_configs:
+        rankings = {}
+        count = {}
+        for segment in config.segments:
+            segment_url = segment + "?partial=true&" + run_config.options
+            crawler = SegmentCrawler(cookie_file, segment_url, rankings, count, config.points, config.participation_points, config.unmatched_participation_points)
+            crawler.run()
 
-    finalrankings = [(k, v) for k, v in rankings.items()]
-    finalrankings.sort(reverse=True, key=(lambda a : a[1]))
-    for person, points in finalrankings:
-        print(person + "," + str(points) + "," + str(count[person]))
+        finalrankings = [(k, v) for k, v in rankings.items()]
+        finalrankings.sort(reverse=True, key=(lambda a : a[1]))
+        with open(run_config.output_file, 'w') as file:
+            for person, points in finalrankings:
+                file.write(person + "," + str(points) + "," + str(count[person]) + "\n")
 
 if __name__ == "__main__":
     main()
