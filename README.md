@@ -8,9 +8,49 @@ So yeah, in the absence of doing things in a proper way, I wrote this instead! T
 
 ### Config File
 
-The tool takes as input a JSON configuration file with a list of segments and configuration options. It allows for multiple runs, that is, different outputs with different options. The options as currently specified are just arguments appended to the segment URL. So for example "filter=overall&date_range=this_month&gender=F" says "Give me the overall leaderboard for this month for females"
+The tool takes as input a JSON configuration file with a list of segments and configuration options. It allows for multiple runs, that is, different outputs with different options. 
 
-Take a look at the august_neighborhood_segment_challenge.txt file in the examples folder for more details
+Format is as follows. Comments are to describe the fields, but obviously you can't copy them since json doesn't allow comments.
+
+~~~~
+{
+    # A list of segment ids that you want to be on the leaderboard. These are strings.
+    "segments": ["1", "2"],
+
+    # The number of points assigned to each rank on the leaderboard per segment. So in this example
+    # first place gets ten, second five, and third one.
+    "points": [ 10, 5, 1],
+
+    # The number of points a participant gets just for doing a segment. This is added to 
+    # the points they receive for placing. So in this example, first place would receive 
+    # 10 + 1 = 11 points.
+    "participation_points": 1,
+
+    # The number of points a participant gets just for doing the segment if they don't 
+    # rank in the points list. That is, if the points list length is 3 and they come in
+    # fourth, they get this many points. 
+    "unmatched_participation_points": 1,
+
+    # The list of run configurations to do. Each one allows for a different set of options
+    # and output files.
+    "runs": [
+      {
+        # The name of the file that where you want the data output.
+        "output_file": "WomenRankingsThisMonth.txt",
+      
+        # The additional URL parameters for this configuration. 
+        # This one says "Overall list for all women in the past month".
+        "options": "filter=overall&date_range=this_month&gender=F"
+      },
+      {
+        "output_file": "OverallToday.txt",
+        "options": "filter=overall&date_range=today"
+      }
+    ]
+}
+~~~~
+
+Take a look at the august_neighborhood_segment_challenge.txt file in the examples folder for a detailed working example.
 
 ### Cookie File
 

@@ -93,7 +93,7 @@ def main():
     for run_config in config.run_configs:
         collected_data = CollectedData._make([{}, {}])
         for segment in config.segments:
-            segment_url = segment + "?partial=true&" + run_config.options
+            segment_url = "https://www.strava.com/segments/{}?partial=true&{}".format(segment, run_config.options)
             crawler = SegmentCrawler(segment_url, collected_data, config)
             crawler.run()
 
