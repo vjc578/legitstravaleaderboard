@@ -65,5 +65,4 @@ This assumes you have the cookies.txt chrome extension and python installed
 3. Run the program `python leaderboard.py examples/august_neighborhood_segment_challenge.txt stravacookies.txt`
 4. Bask in the glory of your fully armed and operational leaderboard
 
-
-
+The output format is a CSV file with athlete_name, total_points, total_num_segments as the fields
