@@ -3,67 +3,119 @@ from collections import namedtuple
 import sys
 import subprocess
 import json
+import time
+from enum import Enum
 
 CollectedData = namedtuple('Data', 'rankings, segment_count')
 
 class SegmentHTMLParser(HTMLParser):
-    def __init__(self, initial_count, collected_data, config):
-        self.foundTrackClick = False
-        self.foundPerson = False
-        self.count = initial_count
-        self.collected_data = collected_data
+    class State(Enum):
+        INITIAL = 1
+        FOUND_TRACK_CLICK = 2
+        FOUND_PERSON = 3
+        SET_PERSON = 4
+        FOUND_TIME = 5
+
+    def __init__(self, time_map, config):
+        self.state = self.State.INITIAL
+        self.person = None
         self.config = config
+        self.time_map = time_map
+        self.count = 0
         super().__init__()
 
     def handle_starttag(self, tag, attrs):
-      if (self.foundTrackClick and tag == 'a'):
-          self.foundPerson = True
-          self.foundTrackClick = False
+      if self.state is self.State.SET_PERSON:
+        if tag == 'td':
+            for attr in attrs:
+                if (attr[0] == "class" and attr[1] == "last-child"):
+                    self.state = self.State.FOUND_TIME
+        return
 
-      if tag == 'td':
+      if self.state is self.State.FOUND_TRACK_CLICK:
+        if tag == 'a':
+            self.state = self.State.FOUND_PERSON
+        return
+
+      if self.state is self.State.INITIAL and tag == 'td':
         for attr in attrs:
-            if (len(attr) >= 2 and attr[0] == "class" and attr[1] == "athlete track-click"):
-                self.foundTrackClick = True
+            if attr[0] == "class" and attr[1] == "athlete track-click":
+                self.state = self.State.FOUND_TRACK_CLICK
 
     def handle_data(self, data):
-        if (self.foundPerson):
-            if (self.count >= len(self.config.points)):
-              thispoints = self.config.unmatched_participation_points
-            else:
-              thispoints = self.config.participation_points + self.config.points[self.count]
+        if self.state is self.State.FOUND_TIME:
+            seconds = 0
+            parts = data.split(":")
+            if len(parts) is 1:
+                # Format is number followed by an s (e.g. 49s) for seconds
+                seconds = int(data[0:len(data) - 1])
+            elif len(parts) is 2:
+                # Format is mm:ss
+                seconds = 60* int(parts[0]) + int(parts[1])
+            elif len(parts) is 3:
+                # Format is hh:mm:ss
+                seconds = 3600 * int(parts[0]) + 60 * int(parts[1]) + int(parts[2])
 
-            if (data in self.collected_data.rankings):
-                self.collected_data.rankings[data] = self.collected_data.rankings[data] + thispoints
-                self.collected_data.segment_count[data] = self.collected_data.segment_count[data] + 1
-            else:
-                self.collected_data.rankings[data] = thispoints
-                self.collected_data.segment_count[data] = 1
+            # TODO: If its already in the map, throw exception?
+            self.time_map[self.person] = seconds
             self.count = self.count + 1
-            self.foundPerson = False
+            self.state = self.State.INITIAL
+            return
+
+        if self.state is self.State.FOUND_PERSON:
+            self.person = data
+            self.state = self.state.SET_PERSON
 
 class SegmentCrawler():
-    def __init__(self,  segment_url, collected_data, config):
-         self.segment_url = segment_url
+    def __init__(self,  segment, collected_data, config, run_config):
+         self.segment = segment
          self.collected_data = collected_data
          self.config = config
+         self.run_config = run_config
+
+    def _get_time_map(self):
+        time_map = {}
+
+        for option in self.run_config.options:
+            page_number = 1
+            count = 0
+            while True:
+                segment_url = "https://www.strava.com/segments/{}?partial=true&{}&page={}&per_page=100".format(self.segment, option, page_number)
+                print("Processing URL: " + segment_url)
+
+                completed = subprocess.run(["curl", "--cookie", self.config.cookie_file, segment_url], capture_output=True)
+                parser = SegmentHTMLParser(time_map, self.config)
+                parser.feed(completed.stdout.decode("utf-8"))
+
+                # Processed everything
+                if (parser.count < 100 * page_number): break
+
+                page_number = page_number + 1
+                count = parser.count
+
+        return time_map
 
     def run(self):
-        page_number = 1
+        time_map = self._get_time_map()
+
+        rankings = [(k, v) for k, v in time_map.items()]
+        rankings.sort(key=(lambda a : a[1]))
         count = 0
-        while True:
-            segment_url = self.segment_url + "&page={}&per_page=100".format(page_number)
-            print("Processing URL: " + segment_url)
 
-            completed = subprocess.run(["curl", "--cookie", self.config.cookie_file, segment_url], capture_output=True)
-            parser = SegmentHTMLParser(count, self.collected_data, self.config)
-            parser.feed(completed.stdout.decode("utf-8"))
+        for (name, _) in rankings:
+            if (count >= len(self.config.points)):
+                thispoints = self.config.unmatched_participation_points
+            else:
+                thispoints = self.config.participation_points + self.config.points[count]
 
-            # Processed everything
-            if (parser.count < 100 * page_number): break
+            if (name in self.collected_data.rankings):
+                self.collected_data.rankings[name] = self.collected_data.rankings[name] + thispoints
+                self.collected_data.segment_count[name] = self.collected_data.segment_count[name] + 1
+            else:
+                self.collected_data.rankings[name] = thispoints
+                self.collected_data.segment_count[name] = 1
 
-            page_number = page_number + 1
-            count = parser.count
-
+            count = count + 1
 
 class Config():
     class RunConfig():
@@ -93,8 +145,7 @@ def main():
     for run_config in config.run_configs:
         collected_data = CollectedData._make([{}, {}])
         for segment in config.segments:
-            segment_url = "https://www.strava.com/segments/{}?partial=true&{}".format(segment, run_config.options)
-            crawler = SegmentCrawler(segment_url, collected_data, config)
+            crawler = SegmentCrawler(segment, collected_data, config, run_config)
             crawler.run()
 
         finalrankings = [(k, v) for k, v in collected_data.rankings.items()]

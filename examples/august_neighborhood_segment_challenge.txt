@@ -57,7 +57,7 @@
         "24963518",
         "1367485",
         "15952592",
-        "16959203",
+        "25161925",
         "10735790",
         "24992781",
         "2743341",
@@ -98,11 +98,17 @@
     "runs" : [
         {
             "output_file": "Overall.txt",
-            "options": "filter=overall&date_range=this_month"
+            "options": ["filter=overall&date_range=this_month"]
+        },
+        {
+            "output_file": "Clydesdale.txt",
+            "options": ["filter=weight_class&weight_class=200_224&date_range=this_month",
+                        "filter=weight_class&weight_class=225_249&date_range=this_month",
+                        "filter=weight_class&weight_class=250_plus&date_range=this_month"]
         },
         {
             "output_file": "Women.txt",
-            "options": "filter=overall&date_range=this_month&gender=F"
+            "options": ["filter=overall&date_range=this_month&gender=F"]
         }
     ]
 }
