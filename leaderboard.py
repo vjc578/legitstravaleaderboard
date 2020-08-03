@@ -26,7 +26,6 @@ class SegmentHTMLParser(HTMLParser):
                 self.foundTrackClick = True
 
     def handle_data(self, data):
-        if (self.count >= 100): raise Exception('Too many entries!')
         if (self.foundPerson):
             if (self.count >= len(self.points)):
               thispoints = self.unmatched_participation_points
