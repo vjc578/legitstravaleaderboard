@@ -47,7 +47,7 @@
         "24895619",
         "2869589",
         "2567785",
-        "23116240",
+        "8813588",
         "1365197",
         "24627589",
         "13861791",
@@ -99,12 +99,6 @@
         {
             "output_file": "Overall.txt",
             "options": ["filter=overall&date_range=this_month"]
-        },
-        {
-            "output_file": "Clydesdale.txt",
-            "options": ["filter=weight_class&weight_class=200_224&date_range=this_month",
-                        "filter=weight_class&weight_class=225_249&date_range=this_month",
-                        "filter=weight_class&weight_class=250_plus&date_range=this_month"]
         },
         {
             "output_file": "Women.txt",
