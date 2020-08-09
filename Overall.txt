@@ -1,0 +1,27 @@
+Robert Baiko,85,2
+Dan Ross,82,2
+Erik Thogerson,72,2
+Sky Scraper,63,2
+Christopher Lee,63,2
+Jason McCullough,60,2
+Dave Snyder,60,2
+Kim Auth 🍔,52,2
+Peter Jellison,51,2
+Jeremiah Sullivan,50,2
+pat mcghen 🍕,48,2
+Julie Grove,48,2
+Matt Antram,45,2
+Vanessa Keech ,41,2
+David Klüg,37,1
+Angie Martinez,23,1
+Tim semega,23,1
+Rob Lochner,22,1
+Matt Sciulli,20,1
+Brad Breneisen,18,1
+Matthew Carothers,17,1
+Darren Hollingsworth,16,1
+Bill Shimko,15,1
+Matt Fratarcangeli,14,1
+Stacey Cleary,13,1
+Jon Brentzel,12,1
+David Schreiber,11,1

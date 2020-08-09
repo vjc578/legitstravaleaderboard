@@ -16,13 +16,15 @@ class SegmentHTMLParser(HTMLParser):
         SET_PERSON = 4
         FOUND_TIME = 5
 
-    def __init__(self, time_map, config):
+    def __init__(self, config):
         self.state = self.State.INITIAL
         self.person = None
         self.config = config
-        self.time_map = time_map
         self.count = 0
         super().__init__()
+
+    def handle_person(self, person, seconds):
+        print("hi")
 
     def handle_starttag(self, tag, attrs):
       if self.state is self.State.SET_PERSON:
@@ -57,7 +59,7 @@ class SegmentHTMLParser(HTMLParser):
                 seconds = 3600 * int(parts[0]) + 60 * int(parts[1]) + int(parts[2])
 
             # TODO: If its already in the map, throw exception?
-            self.time_map[self.person] = seconds
+            self.handle_person(self.person, seconds)
             self.count = self.count + 1
             self.state = self.State.INITIAL
             return
@@ -66,7 +68,45 @@ class SegmentHTMLParser(HTMLParser):
             self.person = data
             self.state = self.state.SET_PERSON
 
+class TimeMapSegmentHTMLParser(SegmentHTMLParser):
+    def __init__(self, time_map, config):
+        self.time_map = time_map
+        super().__init__(config)
+
+    def handle_person(self, person, seconds):
+        self.time_map[person] = seconds
+
 class SegmentCrawler():
+    def __init__(self, cookie_file):
+        self.cookie_file = cookie_file
+
+    def crawl(self, segment_id, option, parser_factory):
+        page_number = 1
+        count = 0
+        while True:
+            segment_url = "https://www.strava.com/segments/{}?partial=true&{}&page={}&per_page=100".format(segment_id, option, page_number)
+            print("Processing URL: " + segment_url)
+
+            completed = subprocess.run(["curl", "--cookie", self.cookie_file, segment_url], capture_output=True)
+            parser = parser_factory.new()
+            parser.feed(completed.stdout.decode("utf-8"))
+
+            # Processed everything
+            if (parser.count < 100 * page_number): break
+
+            page_number = page_number + 1
+            count = parser.count
+
+
+class SegmentStatisticsAggregator():
+    class TimeMapSegmentHTMLParserFactory():
+        def __init__(self,  config, time_map):
+            self.time_map = time_map
+            self.config = config
+
+        def new(self):
+            return TimeMapSegmentHTMLParser(self.time_map, self.config)
+
     def __init__(self,  segment, collected_data, config, run_config):
          self.segment = segment
          self.collected_data = collected_data
@@ -76,22 +116,10 @@ class SegmentCrawler():
     def _get_time_map(self):
         time_map = {}
 
+        parser_factory = self.TimeMapSegmentHTMLParserFactory(self.config, time_map)
+        crawler = SegmentCrawler(self.config.cookie_file)
         for option in self.run_config.options:
-            page_number = 1
-            count = 0
-            while True:
-                segment_url = "https://www.strava.com/segments/{}?partial=true&{}&page={}&per_page=100".format(self.segment, option, page_number)
-                print("Processing URL: " + segment_url)
-
-                completed = subprocess.run(["curl", "--cookie", self.config.cookie_file, segment_url], capture_output=True)
-                parser = SegmentHTMLParser(time_map, self.config)
-                parser.feed(completed.stdout.decode("utf-8"))
-
-                # Processed everything
-                if (parser.count < 100 * page_number): break
-
-                page_number = page_number + 1
-                count = parser.count
+            crawler.crawl(self.segment, option, parser_factory)
 
         return time_map
 
@@ -145,8 +173,8 @@ def main():
     for run_config in config.run_configs:
         collected_data = CollectedData._make([{}, {}])
         for segment in config.segments:
-            crawler = SegmentCrawler(segment, collected_data, config, run_config)
-            crawler.run()
+            aggregator = SegmentStatisticsAggregator(segment, collected_data, config, run_config)
+            aggregator.run()
 
         finalrankings = [(k, v) for k, v in collected_data.rankings.items()]
         finalrankings.sort(reverse=True, key=(lambda a : a[1]))
